@@ -24,7 +24,7 @@ CREATE TABLE employee (
     last_name VARCHAR(30) NOT NULL,
     role_id INTEGER NOT NULL,
     manager_id INTEGER, /* to hold ref to another ee that is this ee's mgr ....  */
-    FOREIGN KEY (role_id)
-    REFERENCES role.id
+    FOREIGN KEY (role_id) /* FIXME:*/
+    REFERENCES role(id)
     ON DELETE CASCADE
 );

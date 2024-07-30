@@ -1,6 +1,14 @@
 const inquirer = require('inquirer')
 const colors = require('colors')
-const pg = require('pg')
+
+/* instead of const pg = require('pg'), this from the pg documentation: */
+import pg from 'pg'
+const { Client } = pg
+const client = new Client()
+await client.connect()
+
+const res = await client.query()
+await client.end()
 
 const initialOptions = [
     'View all departments',
@@ -12,8 +20,8 @@ const initialOptions = [
     'Update an employee role'
 ];
 
-function mainOptions() {
-    inquirer.createPromptModule([
+function chooseTask() {
+    inquirer.prompt([
         {
             type: 'list',
             choices: initialOptions,
@@ -25,4 +33,4 @@ function mainOptions() {
 };
 
 //function call to initialize initial inquirer prompt
-mainOptions();
+chooseTask();

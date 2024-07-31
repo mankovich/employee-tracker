@@ -16,9 +16,9 @@ const pool = new Pool(
         user: 'postgres',
         password: 'password',
         host: 'localhost',
-        database: employees_db
-    }
-    console.log('----------------------------------------\nConnected to the employees_db database.\n----------------------------------------')
+        database: 'employees_db'
+    },
+    console.log('----------------------------------------\nConnected to the emp_db database.\n----------------------------------------')
 )
 
 pool.connect();

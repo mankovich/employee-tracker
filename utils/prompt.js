@@ -1,14 +1,6 @@
 const inquirer = require('inquirer')
 const colors = require('colors')
 
-/* instead of const pg = require('pg'), this from the pg documentation: */
-import pg from 'pg'
-const { Client } = pg
-const client = new Client()
-await client.connect()
-
-const res = await client.query()
-await client.end()
 
 const initialOptions = [
     'View all departments',

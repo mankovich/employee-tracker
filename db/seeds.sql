@@ -6,15 +6,15 @@ VALUES  ('Human Resources'),
         ('Legal');
 
 INSERT INTO role (title, salary, department_id)
-VALUES  (/*1*/'Accounts Manager', '100000', (SELECT id FROM department WHERE name = 'Accounting')),
-        (/*2*/'HR Lead', '120000', (SELECT id FROM department WHERE name = 'Human Resources')),
+VALUES  ('Accounts Manager', '100000', (SELECT id FROM department WHERE name = 'Accounting')),
+        ('HR Lead', '120000', (SELECT id FROM department WHERE name = 'Human Resources')),
         ('Sales Representative', '30000', (SELECT id FROM department WHERE name = 'Sales')),
-        (/*4*/'Sales Manager', '85000', (SELECT id FROM department WHERE name = 'Sales')),
-        (/*5*/'General Counsel', '185000', (SELECT id FROM department WHERE name = 'Legal')),
+        ('Sales Manager', '85000', (SELECT id FROM department WHERE name = 'Sales')),
+        ('General Counsel', '185000', (SELECT id FROM department WHERE name = 'Legal')),
         ('Associate General Counsel', '125000', (SELECT id FROM department WHERE name = 'Legal')),
         ('Executive Assistant-HR', ),
         ('Paralegal', ),
-        1(/*9*/'Customer Service Lead', ),
+        ('Customer Service Lead', ),
         ('Customer Liaison', )
         ('Bookkeeper', ),
         ('Staff Accountants', ),

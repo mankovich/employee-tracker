@@ -4,3 +4,4 @@ await pool.connect()
 
 const res = await pool.query() /*is this supposed to be async??*/
 await client.end()
+

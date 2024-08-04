@@ -37,7 +37,7 @@ const start = async () => {
         } else if (ans.choice === 'View all employees') {
             await printEmps();
         } else if (ans.choice === 'Add a department') {
-            await addDept(newDept);
+            await addDept();
         } else if (ans.choice === 'Add a role') {
             await addRole();
         } else if (ans.choice === 'Add an employee') {
@@ -66,22 +66,51 @@ const promptNewRole = async () => {
             type: 'input',
             message: "What is the title of the new role that you would like to add?'",
             name: 'title'
-        }
+        },
         {
             type: 'list',
             message: 'What department will the new role fall under?',
             choices: departments,
             name: 'department'
-        }
+        },
         {
             type: 'input',
-            message: 'What will be the salary for the new role?'
+            message: 'What will be the salary for the new role?',
             name: 'salary'
         }
     ]);
     return newRole;
 };
 
-const start = 
+const promptNewEmp = async () => {
+    const roles = await Emp_Database.getRole();
+    const employees = await Emp_Database.getEmps();
+
+    const newEmp = await inquirer.prompt([
+        {
+            type: 'input',
+            message: "What is the new employee's first name?'",
+            name: 'firstName'
+        },
+        {
+            type: 'input',
+            message: "What is the new employee's last name?'",
+            name: 'lastName'
+        },
+        {
+            type: 'list',
+            message: "What will be the new employee's role?",
+            name: 'role',
+            choices: roles
+        },
+        {
+            type: 'list',
+            message: "Who will be the new employee's manager?",
+            name: 'manager',
+            choices: [employees + 'N/A']
+        }
+    ]);
+    return newEmp;
+};
 
 module.exports = start();

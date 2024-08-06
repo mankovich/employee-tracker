@@ -296,7 +296,7 @@ function handleChoice(choice) {
             updateEmpRole();
             return
         case 'Quit':
-            process.exit(0);
+            goodbye();
             
     }
 }
@@ -388,14 +388,12 @@ function printWelcome() {
 function goodbye() {
     console.log(colors.magenta(`\n\n\n========================================\n\nGoodbye.\n\n========================================`
     ));
-    end();
+    process.exit();
 };
 
-async function init() {
-    // const pool = new Pool();
+function init() {
     printWelcome();
-    await start();
-    // goodbye()
+    start();
 };
 
 init();

@@ -1,7 +1,6 @@
 const colors = require('colors');
 const { Pool } = require('pg');
 require('dotenv').config();
-const { printTable } = require('console-table-printer');
 const inquirer = require('inquirer')
 
 const pool = new Pool (
@@ -11,19 +10,14 @@ const pool = new Pool (
         host: 'localhost',
         database: 'emp_db'
     },
-    console.log('\n+++++++ Connected to the database. +++++++\n')
 )
-
-function end() {
-    process.exit(0);
-}
 
 getDepts = async () => {
     try {
-        await pool.connect();
-        const { rows } = await pool.query(`SELECT name FROM department`); 
+        const client = await pool.connect()
+        const rows = await client.query(`SELECT name FROM department`); 
         const deptList = [];
-        rows.forEach((dept) => deptList.push(dept.name))
+        deptList.push(rows.name)
         
         return deptList;
 
@@ -73,112 +67,134 @@ getEmpNA = (empList) => {
 
 printDepts = async () => {
     try {
-        await pool.connect();
-        const { rows } = await pool.query("SELECT * FROM department");
+        const client = await pool.connect();
+        const { rows } = await client.query("SELECT * FROM department");
         
         console.log(rows);
-        // printTable(rows)
-        return
+    
+        client.release();
+        start();
 
     } catch (err) {
         console.log(err)
     }
-     
-    start();
 };
 
 printRoles = async () => {
     try {
-        await pool.connect();
-        const { rows } = await pool.query(`
+        const client = await pool.connect();
+        const { rows } = await client.query(`
             SELECT * 
             FROM role
-            JOIN department
+            LEFT JOIN department
             ON role.department_id = department.id`
         )        
-        console.log('');
-        printTable(rows);
+        
+        console.log(rows);
+
+        client.release();
+        start();
 
     } catch (err) {
         console.log(err);
     }
-
-    start();
 };
 
 printEmps = async () => {
     try {
-        await pool.connect();
-        const { rows } = await pool.query(`
+        const client = await pool.connect();
+        const table = await client.query(`
             SELECT
                 employee.id AS emp_id,
-                first_name, 
-                last_name,
-                title,
-                salary,
-                name AS department, 
-                CONCAT(employee.first_name,' ', employee.last_name) AS manager
+                employee.first_name, 
+                employee.last_name,
+                role.title,
+                role.salary,
+                department.name AS department 
             FROM
                 employee
             JOIN 
                 role ON employee.role_id = role.id
             JOIN 
-                department ON role.department_id = department.id
-            LEFT JOIN
-                employee m ON m.id = employee.manager_id`
+                department ON role.department_id = department.id`
+            /*CONCAT(employee.first_name,' ', employee.last_name) AS manager*/
+            /*LEFT JOIN
+                employee m ON m.id = employee.manager_id*/
         );
 
-        console.log('')
-        printTable(rows);
+        console.log(table.rows);
+        client.release;
+        start();
 
     } catch (err) {
         console.log(err);
     }
-
-    start();
 };
 
-addDept = async (newDept) => {
-    await promptNewDept();
-    const { name } = newDept;
+addDept = async () => {
+    const newDept = await inquirer.prompt([
+        {
+            type: 'input',
+            message: '\nWhat is the name of the department that you would like to add?\n',
+            name: 'name'
+        }
+    ]);
+    
     try {
         await pool.connect();
         await pool.query(`
             INSERT INTO 
                 department (name) 
             VALUES 
-                ($1)`, [name]
+                ($1)`, [newDept.name]
             );
         
-        console.log(`New ${name} department added.`);
-        await printDepts();
-
+        console.log(`New ${newDept.name} department added.`);
+        printDepts();
+        start()
     } catch (err) {
         console.log(err);
     } 
-    start()   
 };
 
-addRole = async (newRole) => {
-    await promptNewRole();
-    const { title, salary, department } = newRole;
+addRole = async () => {
+    const departments = await getDepts();
+    const newRole = await inquirer.prompt([
+        {
+            type: 'input',
+            message: "\nWhat is the title of the new role that you would like to add?'",
+            name: 'title'
+        },
+        {
+            type: 'list',
+            message: 'What department will the new role fall under?',
+            choices: departments,
+            name: 'department'
+        },
+        {
+            type: 'input',
+            message: 'What will be the salary for the new role?\n',
+            name: 'salary'
+        }
+    ]);
     
     try {
         await pool.connect();
         await pool.query(`
             INSERT INTO 
-               rolw (title, salary, department_id) 
+               role (title, salary, department_id) 
             VALUES 
-                ($1, $2, (SELECT id FROM department WHERE name = $3))`, [title, salary, department]
+                ($1, $2, (SELECT id FROM department WHERE name = $3))`, [newRole.title, newRole.salary, newRole.department]
             );
 
-        console.log(`New role of ${title} has been added.`);
-        await printRoles();
+        console.log(`New role of ${newRole.title} has been added.`);
+        printRoles();
+        start();
 
     } catch (err) {
         console.log(err);
     }
-    start()
+    
 };
 
 addEmp = async (newEmp) => {
@@ -265,10 +281,10 @@ function handleChoice(choice) {
             printRoles();
             return
         case 'View all employees':
-            addDept();
+            printEmps();
             return
         case 'Add a department':
-            printDepts();
+            addDept();
             return
         case 'Add a role':
             addRole();
@@ -281,7 +297,7 @@ function handleChoice(choice) {
             return
         case 'Quit':
             process.exit(0);
-            return
+            
     }
 }
 
@@ -311,39 +327,6 @@ const start = async () => {
     })
 };
 
-const promptNewDept = async () => {
-    const newDept = inquirer.prompt([
-        {
-            type: 'input',
-            message: '\nWhat is the name of the department that you would like to add?\n',
-            name: 'name'
-        }
-    ]);
-    return newDept.name;
-};
-
-const promptNewRole = async () => {
-    const departments = await getDepts();
-    const newRole = await inquirer.prompt([
-        {
-            type: 'input',
-            message: "\nWhat is the title of the new role that you would like to add?'",
-            name: 'title'
-        },
-        {
-            type: 'list',
-            message: 'What department will the new role fall under?',
-            choices: departments,
-            name: 'department'
-        },
-        {
-            type: 'input',
-            message: 'What will be the salary for the new role?\n',
-            name: 'salary'
-        }
-    ]);
-    return newRole;
-};
 
 const promptNewEmp = async () => {
     const roles = await getRoles();
@@ -412,7 +395,7 @@ async function init() {
     // const pool = new Pool();
     printWelcome();
     await start();
-    goodbye()
+    // goodbye()
 };
 
 init();

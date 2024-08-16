@@ -4,7 +4,7 @@ require('dotenv').config();
 const inquirer = require('inquirer')
 const { printTable } = require('console-table-printer')
 
-const pool = new Pool (
+const pool = new Pool(
     {
         user: 'postgres',
         password: process.env.DB_PASSWORD,
@@ -13,14 +13,15 @@ const pool = new Pool (
     },
 )
 
+//return array of all departments by name
 const getDepts = async () => {
     try {
         const client = await pool.connect()
-        const { rows } = await client.query(`SELECT name FROM department`); 
+        const { rows } = await client.query(`SELECT name FROM department`);
         const deptList = [];
         rows.forEach((dept) => deptList.push(dept.name))
         // console.log(colors.red(`++++++++++++++++\n\n${deptList}\n\n++++++++++++++++++`))
-        
+
         return deptList;
 
     } catch (err) {
@@ -28,14 +29,15 @@ const getDepts = async () => {
     }
 };
 
+//return array of all roles by title
 const getRoles = async () => {
     try {
         const client = await pool.connect();
-        const { rows } = await client.query(`SELECT title FROM role`); 
+        const { rows } = await client.query(`SELECT title FROM role`);
         const roleList = [];
         rows.forEach((role) => roleList.push(role.title))
         // console.log(colors.red(`++++++++++++++++\n\n${roleList}\n\n++++++++++++++++++`))
-       
+
         return roleList;
 
     } catch (err) {
@@ -43,6 +45,7 @@ const getRoles = async () => {
     }
 };
 
+//return array of all employees by name
 const getEmps = async () => {
     try {
         const client = await pool.connect();
@@ -51,11 +54,11 @@ const getEmps = async () => {
                 CONCAT(first_name,' ', last_name) AS name 
             FROM 
                 employee`
-            ); 
+        );
         const empList = [];
         rows.forEach((employee) => empList.push(employee.name))
-        console.log(colors.red(`++++++++++++++++\n\nEmployee List: ${empList}\n\n++++++++++++++++++`))
-        
+        // console.log(colors.red(`++++++++++++++++\n\nEmployee List: ${empList}\n\n++++++++++++++++++`))
+
         return empList
 
     } catch (err) {
@@ -63,25 +66,27 @@ const getEmps = async () => {
     }
 };
 
+//return array of all employees by name plus "N/A" for use as the list choices of managers for new employee
 const getEmpsNA = async () => {
     const empList = await getEmps();
     const empListNA = [];
     empList.forEach((employee) => empListNA.push(employee))
     empListNA.push('N/A')
-    console.log(colors.red(`++++++++++++++++\n\nEmployee List NA: ${empListNA}\n\n++++++++++++++++++`))
-    
+    // console.log(colors.red(`++++++++++++++++\n\nEmployee List NA: ${empListNA}\n\n++++++++++++++++++`))
+
     return empListNA
 }
 
+//display in CLI all departments in a table
 const printDepts = async () => {
     try {
         const client = await pool.connect();
         const { rows } = await client.query("SELECT * FROM department");
-        
+
         console.log('')
         printTable(rows);
         console.log(colors.magenta('\n\n====================\n'));
-    
+
         client.release();
         start();
 
@@ -90,6 +95,7 @@ const printDepts = async () => {
     }
 };
 
+//display in CLI all roles in a table with department each role falls under
 const printRoles = async () => {
     try {
         const client = await pool.connect();
@@ -103,8 +109,8 @@ const printRoles = async () => {
             FROM role
             LEFT JOIN department
             ON role.department_id = department.id`
-        )        
-        
+        )
+
         console.log('')
         printTable(rows);
         console.log(colors.magenta('\n\n====================\n'));
@@ -117,24 +123,26 @@ const printRoles = async () => {
     }
 };
 
+//display in CLI all employeess in a table including their roles, departments, and managers
 const printEmps = async () => {
     try {
         const client = await pool.connect();
         const { rows } = await client.query(`
             SELECT
-                employee.id AS emp_id,
                 employee.first_name, 
                 employee.last_name,
                 role.title,
                 role.salary,
-                department.name AS department, 
-                employee.manager_id
+                department.name AS department,  
+                CONCAT(mgr.first_name, ' ', mgr.last_name) AS manager
             FROM
                 employee
             JOIN 
                 role ON employee.role_id = role.id
             JOIN 
-                department ON role.department_id = department.id`
+                department ON role.department_id = department.id
+            LEFT JOIN
+                employee mgr ON employee.manager_id = mgr.id`
         );
 
         console.log('')
@@ -149,6 +157,7 @@ const printEmps = async () => {
     }
 };
 
+//add a new department
 const addDept = async () => {
     const newDept = await inquirer.prompt([
         {
@@ -157,7 +166,7 @@ const addDept = async () => {
             name: 'name'
         }
     ]);
-    
+
     try {
         const client = await pool.connect();
         await client.query(`
@@ -165,16 +174,17 @@ const addDept = async () => {
                 department (name) 
             VALUES 
                 ($1)`, [newDept.name]
-            );
-        
+        );
+
         console.log(colors.magenta(`\n\n${newDept.name} department added.\n\n`));
         printDepts();
-        
+
     } catch (err) {
         console.log(err);
-    } 
+    }
 };
 
+//add a new role
 const addRole = async () => {
     const departments = await getDepts();
     const newRole = await inquirer.prompt([
@@ -195,7 +205,7 @@ const addRole = async () => {
             name: 'salary'
         }
     ]);
-    
+
     try {
         const client = await pool.connect();
         await client.query(`
@@ -203,7 +213,7 @@ const addRole = async () => {
                role (title, salary, department_id) 
             VALUES 
                 ($1, $2, (SELECT id FROM department WHERE name = $3))`, [newRole.title, newRole.salary, newRole.department]
-            );
+        );
 
         console.log(colors.magenta(`\n\n${newRole.title} role has been added.\n\n`));
         printRoles();
@@ -211,9 +221,10 @@ const addRole = async () => {
     } catch (err) {
         console.log(err);
     }
-    
+
 };
 
+//add a new employee
 const addEmp = async () => {
     const roles = await getRoles();
     const employees = await getEmpsNA();
@@ -251,7 +262,7 @@ const addEmp = async () => {
                     employee (first_name, last_name, role_id, manager_id) 
                 VALUES 
                     ($1, $2, (SELECT id FROM role WHERE title = $3), null)`, [newEmp.firstName, newEmp.lastName, newEmp.role]
-                );
+            );
         } else {
             const mgrName = newEmp.manager.split(' ');
             const managerId = (await client.query(`
@@ -278,6 +289,7 @@ const addEmp = async () => {
     }
 };
 
+//change an employee's role
 const updateEmpRole = async () => {
     const roles = await getRoles();
     const employees = await getEmps();
@@ -296,10 +308,10 @@ const updateEmpRole = async () => {
             choices: roles
         }
     ]);
-    
+
     try {
         const empName = updatedRole.employee.split(' ');
-        console.log(`\n\n++++++++++++++\n\n${updatedRole.title}\n\n++++++++++++++++++++\n\n`)
+        // console.log(`\n\n++++++++++++++\n\n${updatedRole.title}\n\n++++++++++++++++++++\n\n`)
         const client = await pool.connect()
         const roleId = (await client.query(`
             SELECT
@@ -309,7 +321,7 @@ const updateEmpRole = async () => {
             WHERE
                 title = $1`, [updatedRole.title]
         )).rows[0].id;
-        console.log(`\n\n++++++++++++++\n\n${roleId}\n\n++++++++++++++++++++\n\n`)
+        // console.log(`\n\n++++++++++++++\n\n${roleId}\n\n++++++++++++++++++++\n\n`)
         await client.query(`
             UPDATE
                 employee
@@ -328,7 +340,7 @@ const updateEmpRole = async () => {
 };
 
 function handleChoice(choice) {
-    switch(choice) {
+    switch (choice) {
         case 'View all departments':
             printDepts();
             return
@@ -351,7 +363,7 @@ function handleChoice(choice) {
             updateEmpRole();
             return
         case 'Quit':
-            goodbye();   
+            goodbye();
     }
 }
 
@@ -376,9 +388,9 @@ const start = async () => {
             choices: options,
         }
     ])
-    .then((ans) => {
-        handleChoice(ans.choice)
-    })
+        .then((ans) => {
+            handleChoice(ans.choice)
+        })
 };
 
 

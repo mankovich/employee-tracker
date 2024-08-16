@@ -6,7 +6,7 @@ This is a command-line application that can manage a company's employee database
 
 ## Walkthrough Video
 
-
+![Video walking through using the application in the CLI.](./walkthrough_video/employee-tracker_walkthrough.mp4)
 
 The walkthrough video may also be viewed at this Google Drive [link.](https://drive.google.com/file/d/18AYte1Nml6jMB-vpg3mSpS4eWqbEbemx/view?usp=sharing)
 

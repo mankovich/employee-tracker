@@ -350,6 +350,9 @@ function handleChoice(choice) {
         case 'View all employees':
             printEmps();
             return
+        case "Update an employee's role":
+            updateEmpRole();
+            return
         case 'Add a department':
             addDept();
             return
@@ -358,9 +361,6 @@ function handleChoice(choice) {
             return
         case 'Add an employee':
             addEmp();
-            return
-        case "Update an employee's role":
-            updateEmpRole();
             return
         case 'Quit':
             goodbye();
@@ -372,10 +372,10 @@ const options = [
     'View all departments',
     'View all roles',
     'View all employees',
+    "Update an employee's role",
     'Add a department',
     'Add a role',
     'Add an employee',
-    "Update an employee's role",
     'Quit'
 ];
 

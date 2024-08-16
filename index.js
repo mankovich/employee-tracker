@@ -19,7 +19,7 @@ const getDepts = async () => {
         const { rows } = await client.query(`SELECT name FROM department`); 
         const deptList = [];
         rows.forEach((dept) => deptList.push(dept.name))
-        console.log(colors.red(`++++++++++++++++\n\n${deptList}\n\n++++++++++++++++++`))
+        // console.log(colors.red(`++++++++++++++++\n\n${deptList}\n\n++++++++++++++++++`))
         
         return deptList;
 
@@ -42,27 +42,6 @@ const getRoles = async () => {
         console.log(err);
     }
 };
-
-// const getEmpsNA = async () => {
-//     try {
-//         const client = await pool.connect();
-//         const { rows } = await client.query(`
-//             SELECT 
-//                 CONCAT(first_name,' ', last_name) AS name 
-//             FROM 
-//                 employee`
-//             ); 
-//         const empListNA = [];
-//         rows.forEach((employee) => empListNA.push(employee.name))
-//         empListNA.push('N/A')
-//         console.log(colors.red(`++++++++++++++++\n\n${empListNA}\n\n++++++++++++++++++`))
-        
-//         return empListNA
-
-//     } catch (err) {
-//         console.log(err);
-//     }
-// };
 
 const getEmps = async () => {
     try {
@@ -87,7 +66,7 @@ const getEmps = async () => {
 const getEmpsNA = async () => {
     const empList = await getEmps();
     const empListNA = [];
-    empList.forEach((employee) => empListNA.push(employee.name))
+    empList.forEach((employee) => empListNA.push(employee))
     empListNA.push('N/A')
     console.log(colors.red(`++++++++++++++++\n\nEmployee List NA: ${empListNA}\n\n++++++++++++++++++`))
     
@@ -101,6 +80,7 @@ const printDepts = async () => {
         
         console.log('')
         printTable(rows);
+        console.log(colors.magenta('\n\n====================\n'));
     
         client.release();
         start();
@@ -127,6 +107,7 @@ const printRoles = async () => {
         
         console.log('')
         printTable(rows);
+        console.log(colors.magenta('\n\n====================\n'));
 
         client.release();
         start();
@@ -146,7 +127,8 @@ const printEmps = async () => {
                 employee.last_name,
                 role.title,
                 role.salary,
-                department.name AS department 
+                department.name AS department, 
+                employee.manager_id
             FROM
                 employee
             JOIN 
@@ -157,6 +139,8 @@ const printEmps = async () => {
 
         console.log('')
         printTable(rows);
+        console.log(colors.magenta('\n\n====================\n'));
+
         client.release;
         start();
 
@@ -183,9 +167,9 @@ const addDept = async () => {
                 ($1)`, [newDept.name]
             );
         
-        console.log(colors.green(`\n\nNew ${newDept.name} department added.\n\n`));
-        await printDepts();
-        start()
+        console.log(colors.magenta(`\n\n${newDept.name} department added.\n\n`));
+        printDepts();
+        
     } catch (err) {
         console.log(err);
     } 
@@ -221,9 +205,8 @@ const addRole = async () => {
                 ($1, $2, (SELECT id FROM department WHERE name = $3))`, [newRole.title, newRole.salary, newRole.department]
             );
 
-        console.log(colors.green(`\n\nNew role of ${newRole.title} has been added.\n\n`));
-        await printRoles();
-        start();
+        console.log(colors.magenta(`\n\n${newRole.title} role has been added.\n\n`));
+        printRoles();
 
     } catch (err) {
         console.log(err);
@@ -271,15 +254,15 @@ const addEmp = async () => {
                 );
         } else {
             const mgrName = newEmp.manager.split(' ');
-            const managerId = (await pool.query(`
+            const managerId = (await client.query(`
                 SELECT 
                     id 
                 FROM 
                     employee 
                 WHERE 
-                    first_name = $1 AND last_name = $2`, [...mgrName]
-            ));
-            await pool.query(`
+                    first_name = $1 AND last_name = $2`, [mgrName[0], mgrName[1]]
+            )).rows[0].id;
+            await client.query(`
                 INSERT INTO 
                     employee (first_name, last_name, role_id, manager_id)
                 VALUES
@@ -287,10 +270,8 @@ const addEmp = async () => {
             );
         };
 
-        console.log(colors.green(`\n\nNew employee ${newEmp.firstName} ${newEmp.lastName} has been successfully added to the database.\n\n`));
-        
-        await printEmps();
-        start()
+        console.log(colors.magenta(`\n\nNew employee ${newEmp.firstName} ${newEmp.lastName} has been successfully added to the database.\n\n`));
+        printEmps();
 
     } catch (err) {
         console.log(err);
@@ -316,31 +297,30 @@ const updateEmpRole = async () => {
         }
     ]);
     
-    const empName = updatedRole.name.split(' ');
-
     try {
+        const empName = updatedRole.employee.split(' ');
+        console.log(`\n\n++++++++++++++\n\n${updatedRole.title}\n\n++++++++++++++++++++\n\n`)
         const client = await pool.connect()
-        const roleId = await client.query(`
+        const roleId = (await client.query(`
             SELECT
                 id
             FROM
                 role
             WHERE
                 title = $1`, [updatedRole.title]
-        );
+        )).rows[0].id;
+        console.log(`\n\n++++++++++++++\n\n${roleId}\n\n++++++++++++++++++++\n\n`)
         await client.query(`
             UPDATE
                 employee
             SET
                 role_id = $1
             WHERE
-                first_name = $2 AND last_name = $3`, [roleId, ...empName]
+                first_name = $2 AND last_name = $3`, [roleId, empName[0], empName[1]]
         );
 
-        console.log(colors.green(`\n\nEmployee ${updatedRole.name}'s job title has been updated to ${updatedRole.title}.\n\n`));
-        
-        await printEmps();
-        start()
+        console.log(colors.magenta(`\n\nEmployee ${updatedRole.employee}'s job title has been updated to ${updatedRole.title}.\n\n`));
+        printEmps();
 
     } catch (err) {
         console.log(err)
@@ -371,8 +351,7 @@ function handleChoice(choice) {
             updateEmpRole();
             return
         case 'Quit':
-            goodbye();
-            
+            goodbye();   
     }
 }
 
@@ -404,12 +383,12 @@ const start = async () => {
 
 
 function printWelcome() {
-    console.log(colors.magenta(`\n\n\n==================================================\n\nHello and welcome to the user command-line \ninterface for this employee tracker.\n\n==================================================`
+    console.log(colors.magenta(`\n\n\n==================================================\n\nHello and welcome to the user command-line \ninterface for this employee tracker.\n\n==================================================\n`
     ))
 };
 
 function goodbye() {
-    console.log(colors.magenta(`\n\n\n========================================\n\nGoodbye.\n\n========================================`
+    console.log(colors.magenta(`\n\n\n========================================\n\nGoodbye.\n\n========================================\n`
     ));
     process.exit();
 };

@@ -2,6 +2,7 @@ const colors = require('colors');
 const { Pool } = require('pg');
 require('dotenv').config();
 const inquirer = require('inquirer')
+const { printTable } = require('console-table-printer')
 
 const pool = new Pool (
     {
@@ -52,16 +53,15 @@ getEmps = async () => {
         const empList = [];
         rows.forEach((employee) => empList.push(employee.name))
         
-        return empList;
+        getEmpNA(empList);
 
     } catch (err) {
         console.log(err);
     }
-    getEmpNA(empList);
 };
 
-getEmpNA = (empList) => {
-    const empListNA = empList.push('N/A');
+getEmpNA = async () => {
+    const empListNA = await empList.push('N/A');
     return empListNA;
 };
 
@@ -70,7 +70,7 @@ printDepts = async () => {
         const client = await pool.connect();
         const { rows } = await client.query("SELECT * FROM department");
         
-        console.log(rows);
+        printTable(rows);
     
         client.release();
         start();
@@ -90,7 +90,7 @@ printRoles = async () => {
             ON role.department_id = department.id`
         )        
         
-        console.log(rows);
+        printTable(rows);
 
         client.release();
         start();
@@ -103,7 +103,7 @@ printRoles = async () => {
 printEmps = async () => {
     try {
         const client = await pool.connect();
-        const table = await client.query(`
+        const { rows } = await client.query(`
             SELECT
                 employee.id AS emp_id,
                 employee.first_name, 
@@ -117,12 +117,9 @@ printEmps = async () => {
                 role ON employee.role_id = role.id
             JOIN 
                 department ON role.department_id = department.id`
-            /*CONCAT(employee.first_name,' ', employee.last_name) AS manager*/
-            /*LEFT JOIN
-                employee m ON m.id = employee.manager_id*/
         );
 
-        console.log(table.rows);
+        printTable(rows);
         client.release;
         start();
 
@@ -141,16 +138,16 @@ addDept = async () => {
     ]);
     
     try {
-        await pool.connect();
-        await pool.query(`
+        const client = await pool.connect();
+        await client.query(`
             INSERT INTO 
                 department (name) 
             VALUES 
                 ($1)`, [newDept.name]
             );
         
-        console.log(`New ${newDept.name} department added.`);
-        printDepts();
+        console.log(colors.green(`\n\nNew ${newDept.name} department added.\n\n`));
+        await printDepts();
         start()
     } catch (err) {
         console.log(err);
@@ -179,16 +176,16 @@ addRole = async () => {
     ]);
     
     try {
-        await pool.connect();
-        await pool.query(`
+        const client = await pool.connect();
+        await client.query(`
             INSERT INTO 
                role (title, salary, department_id) 
             VALUES 
                 ($1, $2, (SELECT id FROM department WHERE name = $3))`, [newRole.title, newRole.salary, newRole.department]
             );
 
-        console.log(`New role of ${newRole.title} has been added.`);
-        printRoles();
+        console.log(colors.green(`\n\nNew role of ${newRole.title} has been added.\n\n`));
+        await printRoles();
         start();
 
     } catch (err) {
@@ -197,21 +194,46 @@ addRole = async () => {
     
 };
 
-addEmp = async (newEmp) => {
-    await promptNewEmp();
-    const { firstName, lastName, role, manager } = newEmp;
-    
+addEmp = async () => {
+    const roles = await getRoles();
+    const employees = await getEmpNA();
+
+    const newEmp = await inquirer.prompt([
+        {
+            type: 'input',
+            message: "\nWhat is the new employee's first name?'",
+            name: 'firstName'
+        },
+        {
+            type: 'input',
+            message: "What is the new employee's last name?'",
+            name: 'lastName'
+        },
+        {
+            type: 'list',
+            message: "What will be the new employee's role?",
+            name: 'role',
+            choices: roles
+        },
+        {
+            type: 'list',
+            message: "Who will be the new employee's manager?\n",
+            name: 'manager',
+            choices: employees
+        }
+    ]);
+
     try {
-        if (manager === 'N/A') {
-            await pool.connect();
-            await pool.query(`
+        const client = await pool.connect()
+        if (newEmp.manager === 'N/A') {
+            await client.query(`
                 INSERT INTO 
                     employee (first_name, last_name, role_id, manager_id) 
                 VALUES 
-                    ($1, $2, (SELECT id FROM role WHERE title = $3), null)`, [firstName, lastName, role]
+                    ($1, $2, (SELECT id FROM role WHERE title = $3), null)`, [newEmp.firstName, newEmp.lastName, newEmp.role]
                 );
         } else {
-            const mgrName = manager.split(' ');
+            const mgrName = newEmp.manager.split(' ');
             const managerId = (await pool.query(`
                 SELECT 
                     id 
@@ -224,18 +246,18 @@ addEmp = async (newEmp) => {
                 INSERT INTO 
                     employee (first_name, last_name, role_id, manager_id)
                 VALUES
-                    ($1, $2, (SELECT id FROM role WHERE title = $3), $4)`, [firstName, lastName, role, managerId]
+                    ($1, $2, (SELECT id FROM role WHERE title = $3), $4)`, [newEmp.firstName, newEmp.lastName, newEmp.role, managerId]
             );
         };
 
-        console.log(`New employee ${firstName} ${lastName} has been successfully added to the database.`);
+        console.log(colors.green(`\n\nNew employee ${firstName} ${lastName} has been successfully added to the database.\n\n`));
         
         await printEmps();
+        start()
 
     } catch (err) {
         console.log(err);
     }
-    start()
 };
 
 updateEmpRole = async (updatedRole) => {
@@ -325,38 +347,6 @@ const start = async () => {
     .then((ans) => {
         handleChoice(ans.choice)
     })
-};
-
-
-const promptNewEmp = async () => {
-    const roles = await getRoles();
-    const employees = await getEmpNA();
-
-    const newEmp = await inquirer.prompt([
-        {
-            type: 'input',
-            message: "\nWhat is the new employee's first name?'",
-            name: 'firstName'
-        },
-        {
-            type: 'input',
-            message: "What is the new employee's last name?'",
-            name: 'lastName'
-        },
-        {
-            type: 'list',
-            message: "What will be the new employee's role?",
-            name: 'role',
-            choices: roles
-        },
-        {
-            type: 'list',
-            message: "Who will be the new employee's manager?\n",
-            name: 'manager',
-            choices: employees
-        }
-    ]);
-    return newEmp;
 };
 
 const promptUpdateRole = async () => {

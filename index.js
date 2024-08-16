@@ -13,12 +13,13 @@ const pool = new Pool (
     },
 )
 
-getDepts = async () => {
+const getDepts = async () => {
     try {
         const client = await pool.connect()
-        const rows = await client.query(`SELECT name FROM department`); 
+        const { rows } = await client.query(`SELECT name FROM department`); 
         const deptList = [];
-        deptList.push(rows.name)
+        rows.forEach((dept) => deptList.push(dept.name))
+        console.log(colors.red(`++++++++++++++++\n\n${deptList}\n\n++++++++++++++++++`))
         
         return deptList;
 
@@ -27,12 +28,13 @@ getDepts = async () => {
     }
 };
 
-getRoles = async () => {
+const getRoles = async () => {
     try {
-        await pool.connect();
-        const { rows } = await pool.query(`SELECT title FROM role`); 
+        const client = await pool.connect();
+        const { rows } = await client.query(`SELECT title FROM role`); 
         const roleList = [];
         rows.forEach((role) => roleList.push(role.title))
+        // console.log(colors.red(`++++++++++++++++\n\n${roleList}\n\n++++++++++++++++++`))
        
         return roleList;
 
@@ -41,10 +43,31 @@ getRoles = async () => {
     }
 };
 
-getEmps = async () => {
+// const getEmpsNA = async () => {
+//     try {
+//         const client = await pool.connect();
+//         const { rows } = await client.query(`
+//             SELECT 
+//                 CONCAT(first_name,' ', last_name) AS name 
+//             FROM 
+//                 employee`
+//             ); 
+//         const empListNA = [];
+//         rows.forEach((employee) => empListNA.push(employee.name))
+//         empListNA.push('N/A')
+//         console.log(colors.red(`++++++++++++++++\n\n${empListNA}\n\n++++++++++++++++++`))
+        
+//         return empListNA
+
+//     } catch (err) {
+//         console.log(err);
+//     }
+// };
+
+const getEmps = async () => {
     try {
-        await pool.connect();
-        const { rows } = await pool.query(`
+        const client = await pool.connect();
+        const { rows } = await client.query(`
             SELECT 
                 CONCAT(first_name,' ', last_name) AS name 
             FROM 
@@ -52,24 +75,31 @@ getEmps = async () => {
             ); 
         const empList = [];
         rows.forEach((employee) => empList.push(employee.name))
+        console.log(colors.red(`++++++++++++++++\n\nEmployee List: ${empList}\n\n++++++++++++++++++`))
         
-        getEmpNA(empList);
+        return empList
 
     } catch (err) {
         console.log(err);
     }
 };
 
-getEmpNA = async () => {
-    const empListNA = await empList.push('N/A');
-    return empListNA;
-};
+const getEmpsNA = async () => {
+    const empList = await getEmps();
+    const empListNA = [];
+    empList.forEach((employee) => empListNA.push(employee.name))
+    empListNA.push('N/A')
+    console.log(colors.red(`++++++++++++++++\n\nEmployee List NA: ${empListNA}\n\n++++++++++++++++++`))
+    
+    return empListNA
+}
 
-printDepts = async () => {
+const printDepts = async () => {
     try {
         const client = await pool.connect();
         const { rows } = await client.query("SELECT * FROM department");
         
+        console.log('')
         printTable(rows);
     
         client.release();
@@ -80,16 +110,22 @@ printDepts = async () => {
     }
 };
 
-printRoles = async () => {
+const printRoles = async () => {
     try {
         const client = await pool.connect();
         const { rows } = await client.query(`
-            SELECT * 
+            SELECT 
+                role.id AS roleId,
+                title,
+                salary, 
+                name AS department, 
+                department.id AS deptId
             FROM role
             LEFT JOIN department
             ON role.department_id = department.id`
         )        
         
+        console.log('')
         printTable(rows);
 
         client.release();
@@ -100,7 +136,7 @@ printRoles = async () => {
     }
 };
 
-printEmps = async () => {
+const printEmps = async () => {
     try {
         const client = await pool.connect();
         const { rows } = await client.query(`
@@ -119,6 +155,7 @@ printEmps = async () => {
                 department ON role.department_id = department.id`
         );
 
+        console.log('')
         printTable(rows);
         client.release;
         start();
@@ -128,7 +165,7 @@ printEmps = async () => {
     }
 };
 
-addDept = async () => {
+const addDept = async () => {
     const newDept = await inquirer.prompt([
         {
             type: 'input',
@@ -154,7 +191,7 @@ addDept = async () => {
     } 
 };
 
-addRole = async () => {
+const addRole = async () => {
     const departments = await getDepts();
     const newRole = await inquirer.prompt([
         {
@@ -194,9 +231,9 @@ addRole = async () => {
     
 };
 
-addEmp = async () => {
+const addEmp = async () => {
     const roles = await getRoles();
-    const employees = await getEmpNA();
+    const employees = await getEmpsNA();
 
     const newEmp = await inquirer.prompt([
         {
@@ -250,7 +287,7 @@ addEmp = async () => {
             );
         };
 
-        console.log(colors.green(`\n\nNew employee ${firstName} ${lastName} has been successfully added to the database.\n\n`));
+        console.log(colors.green(`\n\nNew employee ${newEmp.firstName} ${newEmp.lastName} has been successfully added to the database.\n\n`));
         
         await printEmps();
         start()
@@ -260,22 +297,38 @@ addEmp = async () => {
     }
 };
 
-updateEmpRole = async (updatedRole) => {
-    await promptUpdateRole();
-    const { name, role } = updatedRole;
-    const empName = name.split(' ');
+const updateEmpRole = async () => {
+    const roles = await getRoles();
+    const employees = await getEmps();
+
+    const updatedRole = await inquirer.prompt([
+        {
+            type: 'list',
+            message: "\nWhich employee is getting a new role?'",
+            name: 'employee',
+            choices: employees
+        },
+        {
+            type: 'list',
+            message: "What will be the employee's new role?\n",
+            name: 'title',
+            choices: roles
+        }
+    ]);
+    
+    const empName = updatedRole.name.split(' ');
 
     try {
-        await pool.connect()
-        const roleId = (await pool.query(`
+        const client = await pool.connect()
+        const roleId = await client.query(`
             SELECT
                 id
             FROM
                 role
             WHERE
-                title = $1`, [role]
-        ));
-        await pool.query(`
+                title = $1`, [updatedRole.title]
+        );
+        await client.query(`
             UPDATE
                 employee
             SET
@@ -284,14 +337,14 @@ updateEmpRole = async (updatedRole) => {
                 first_name = $2 AND last_name = $3`, [roleId, ...empName]
         );
 
-        console.log(`Employee ${name}'s job title has been updated to ${title}.`);
+        console.log(colors.green(`\n\nEmployee ${updatedRole.name}'s job title has been updated to ${updatedRole.title}.\n\n`));
         
         await printEmps();
+        start()
 
     } catch (err) {
         console.log(err)
     };
-    start()
 };
 
 function handleChoice(choice) {
@@ -349,26 +402,6 @@ const start = async () => {
     })
 };
 
-const promptUpdateRole = async () => {
-    const roles = await getRoles();
-    const employees = await getEmps();
-
-    const updatedRole = await inquirer.prompt([
-        {
-            type: 'list',
-            message: "\nWhich employee is getting a new role?'",
-            name: 'employee',
-            choices: employees
-        },
-        {
-            type: 'list',
-            message: "What will be the employee's new role?\n",
-            name: 'title',
-            choices: roles
-        }
-    ]);
-    return updatedRole;
-}
 
 function printWelcome() {
     console.log(colors.magenta(`\n\n\n==================================================\n\nHello and welcome to the user command-line \ninterface for this employee tracker.\n\n==================================================`
